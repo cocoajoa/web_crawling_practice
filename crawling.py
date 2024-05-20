@@ -117,7 +117,8 @@ def what():
         page = browser.new_page()
         page.set_extra_http_headers(headers)        
         page.goto(url)
-        for number in range(1, 17):
+        for number in range(1, 18):
+            print(number)
             page.evaluate(f'regionSet({number});')
             page.wait_for_selector('div#main_right')
             map_list_html = page.content()
@@ -131,6 +132,7 @@ def what():
             # div#main_right 아래의 div.mapList 요소들을 추출
             map_list_elements = soup.select('div#main_right a')
             city_dict[city_name.string] = [element.string for element in map_list_elements]
+            print(city_name.string)
             # 데이터 추출 및 city_name 리스트에 추가
             # for element in map_list_elements:
             #     print(element.string)
@@ -165,5 +167,6 @@ def that():
         browser.close()
 
 # what()
-that()
+what()
+print(city_dict)
 
