@@ -20,7 +20,7 @@ def crawl_website():
 
         page.goto('https://www.kfcc.co.kr/map/main.do')
 
-        # 버튼 클릭
+        # 버튼 클릭r
         for number in range(1, 17):
             page.evaluate(f'regionSet({number});')
 
