@@ -1,9 +1,7 @@
-from bs4 import BeautifulSoup
 import json
-from pprint import pprint
 
 
-
+output_file_path = 'intr_info.json'
 
 city_info = {
     '인천': ['강화군', '서구', '동구', '중구', '미추홀구', '연수구', '계양구', '부평구', '남동구', '옹진군'], 
@@ -31,58 +29,96 @@ city_info = {
 from playwright.sync_api import sync_playwright
 from urllib.parse import urlencode
 
-intr_info = []
+intr_info = {}
+
 
 def find_intr(city_name, city_district):
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch()
         
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         params = {
             'r1': city_name,
-            'r2': city_district
+            'r2': city_district,
+            'pageNo': 1
         }
         url = f'https://www.kfcc.co.kr/map/list.do?{urlencode(params)}'
         page = browser.new_page()
         page.set_extra_http_headers(headers)        
         page.goto(url)
-        page.wait_for_selector('a.btn.small.blueBtn03')
-        # tr_tags = page.query_selector_all('tr.ac > td')
-        trs = page.query_selector_all('tr.ac')
+        page.wait_for_load_state('networkidle')
+        page.set_default_timeout(5000)
+        total_count = page.locator('a.btn.small.blueBtn03').count()
+        group_size = 10
 
-        for tr in trs:
-            # 요소의 href 속성 가져오기
-            page.wait_for_selector('a.btn.small.blueBtn03')
-            class_name = tr.get_attribute('class')
-            # 요소의 id 속성 가져오기
-            element_id = tr.get_attribute('id')
-            but = tr.query_selector('a.btn.small.blueBtn03')
-            # 가져온 속성들을 출력
-            print("버튼의 class 속성:", class_name)
-            print("버튼의 id 속성:", element_id)
-            but.click()
-            print("현재 페이지 URL:", page.url)
-            page.wait_for_selector('div.title')
-            page.go_back()
-            page.uncheck()
-            page.wait_for_selector('a.btn.small.blueBtn03')
-            page.wait_for_timeout(5000)
-        # print("현재 페이지 URL:", page.url)
-        # for but in buttons:
-        #     
-        #     
+        for i in range(0, total_count, group_size):
+            for j in range(i, i + group_size):
+                index_page = j // group_size
+                if index_page and not (j % group_size):
+                    page.wait_for_selector(f'#page{index_page + 1}')
+                    page.click(f'#page{index_page + 1}')
+                    page.wait_for_selector(f'#page{index_page + 1}')
 
+                page.locator('a.btn.small.blueBtn03').nth(j).click()
+                
        
- 
+                page.wait_for_selector("#sub_tab_rate")
+
+                bank_name = page.query_selector('#div1 > div.pop-body.detail > div > div.top > div.title')
+   
+                name = bank_name.inner_text()
+                element = page.query_selector('#sub_tab_rate')
+
+                if element:
+               
+                    iframe_element = page.frame_locator('iframe[id="rateFrame"][name="rateFrame2"]')
+                    iframe_element.locator('a.tabw80').nth(1).click()
+
+                    # mg정기예금
+                    try:
+                        mg_fixed_rate = iframe_element.locator('table[summary="MG더뱅킹정기예금에 대한 상품명, 계약기간, 기본이율 등의 정보를 나타낸 표"] > tbody > tr > td:nth-child(3)').text_content()
+                    except:
+                        mg_fixed_rate = '연0.0%'
+                    iframe_element.locator('a.tabw80').nth(2).click()
+                    
+                    # 정기적금
+                    try:
+                        mg_saving1_rate = iframe_element.locator('table[summary="정기적금에 대한 상품명, 계약기간, 기본이율 등의 정보를 나타낸 표"] > tbody > tr:nth-child(2) > td:nth-child(2)').first.text_content()
+                    except:
+                        mg_saving1_rate = '연0.0%'
+                    # mg정기적금
+                    try: 
+                        mg_saving2_rate = iframe_element.locator('table[summary="MG더뱅킹정기적금에 대한 상품명, 계약기간, 기본이율 등의 정보를 나타낸 표"] > tbody > tr:nth-child(2) > td:nth-child(2) ').first.text_content()
+                    except:
+                        mg_saving2_rate = '연0.0%'
+                    # 자유적립적금
+                    try:
+                        mg_saving3_rate = iframe_element.locator('table[summary="자유적립적금에 대한 상품명, 계약기간, 기본이율 등의 정보를 나타낸 표"] > tbody > tr:nth-child(3) > td:nth-child(2) ').first.text_content()
+                    except:
+                        mg_saving3_rate = '연0.0%'
+                    
+                    intr_info[name] = {
+                        '정기예금': mg_fixed_rate,
+                        '정기적금' : mg_saving1_rate,
+                        'mg정기적금' : mg_saving2_rate,
+                        '자유적립적금' : mg_saving3_rate
+                    }
+                button2 = page.query_selector('button.grayBtn')
+                button2.click()
+                if j == total_count - 1:
+                    break
+        print(f'{city_name} {city_district} finish')
 
         browser.close()
-   
-intr_info = []
-find_intr('서울', '영등포구')
-# for city in city_info:
-#     for district in city_info[city]:
-#         find_intr(city, district)
 
+for city in city_info:
+    for district in city_info[city]:
+        find_intr(city, district)
+        print(intr_info)
+        
+with open(output_file_path, 'w') as json_file:
+    json.dump(intr_info, json_file, indent=4)
 
+print(f'Data saved to {output_file_path}')
