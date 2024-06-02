@@ -4,10 +4,14 @@ certifi==2024.2.2
 charset-normalizer==3.3.2
 Django==4.2.13
 djangorestframework==3.15.1
+greenlet==3.0.3
 idna==3.7
 lxml==5.2.2
+playwright==1.44.0
+pyee==11.1.0
 requests==2.31.0
 soupsieve==2.5
 sqlparse==0.5.0
 typing_extensions==4.11.0
+tzdata==2024.1
 urllib3==2.2.1
